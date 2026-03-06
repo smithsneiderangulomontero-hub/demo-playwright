@@ -1,34 +1,53 @@
 import { test, expect } from '@playwright/test';
 
-/**
- * Prueba de login con credenciales inválidas.
- * Página de prueba: The Internet (Herokuapp) - formulario de login.
- * Objetivo: capturar y validar el mensaje de error cuando las credenciales son incorrectas.
- */
-test('muestra mensaje de error al ingresar credenciales inválidas', async ({ page }) => {
-  const urlLogin = 'https://the-internet.herokuapp.com/login';
-  const credencialesInvalidas = { usuario: 'usuario_invalido', password: 'password_invalido' };
+const URL_LOGIN = 'https://the-internet.herokuapp.com/login';
+const USER_VALIDO = 'tomsmith';
+const PASS_VALIDA = 'SuperSecretPassword!';
 
-  // 1. Ir a la página de login
-  await page.goto(urlLogin);
+test('Happy path: login válido redirige al área segura', async ({ page }) => {
+  await page.goto(URL_LOGIN);
 
-  // 2. Comprobar que el formulario está visible
-  await expect(page.getByRole('heading', { name: /login/i })).toBeVisible();
-
-  // 3. Rellenar credenciales inválidas
-  await page.getByLabel(/username/i).fill(credencialesInvalidas.usuario);
-  await page.getByLabel(/password/i).fill(credencialesInvalidas.password);
-
-  // 4. Enviar el formulario (click en Login)
+  await page.getByLabel(/username/i).fill(USER_VALIDO);
+  await page.getByLabel(/password/i).fill(PASS_VALIDA);
   await page.getByRole('button', { name: /login/i }).click();
 
-  // 5. Capturar y validar el mensaje de error
-  const mensajeError = page.locator('#flash').filter({ hasText: /invalid/i });
-  await expect(mensajeError).toBeVisible();
+  await expect(page).toHaveURL(/\/secure/);
+  await expect(page.locator('#flash')).toContainText(/you logged into a secure area!/i);
+});
 
-  const textoError = await mensajeError.textContent();
-  expect(textoError).toMatch(/your username is invalid!/i);
+test('Happy path: login válido y logout correcto', async ({ page }) => {
+  await page.goto(URL_LOGIN);
 
-  // Opcional: asegurar que no se redirige al área privada
-  await expect(page).toHaveURL(urlLogin);
+  await page.getByLabel(/username/i).fill(USER_VALIDO);
+  await page.getByLabel(/password/i).fill(PASS_VALIDA);
+  await page.getByRole('button', { name: /login/i }).click();
+  await expect(page).toHaveURL(/\/secure/);
+
+  // Logout
+  await page.getByRole('link', { name: /logout/i }).click();
+
+  await expect(page).toHaveURL(URL_LOGIN);
+  await expect(page.locator('#flash')).toContainText(/you logged out of the secure area!/i);
+});
+
+test('Unhappy path: credenciales inválidas muestran mensaje de error', async ({ page }) => {
+  await page.goto(URL_LOGIN);
+
+  await page.getByLabel(/username/i).fill('usuario_invalido');
+  await page.getByLabel(/password/i).fill('password_invalida');
+  await page.getByRole('button', { name: /login/i }).click();
+
+  await expect(page).toHaveURL(URL_LOGIN);
+  await expect(page.locator('#flash')).toContainText(/your username is invalid!/i);
+});
+
+test('Unhappy path: no introducir password muestra error', async ({ page }) => {
+  await page.goto(URL_LOGIN);
+
+  await page.getByLabel(/username/i).fill(USER_VALIDO);
+  await page.getByLabel(/password/i).fill(''); // sin contraseña
+  await page.getByRole('button', { name: /login/i }).click();
+
+  await expect(page).toHaveURL(URL_LOGIN);
+  await expect(page.locator('#flash')).toContainText(/your password is invalid!/i);
 });
