@@ -1,53 +1,41 @@
-import { test, expect } from '@playwright/test';
+import { test } from '@playwright/test';
+import { LoginPage } from './pages/LoginPage';
 
-const URL_LOGIN = 'https://the-internet.herokuapp.com/login';
 const USER_VALIDO = 'tomsmith';
 const PASS_VALIDA = 'SuperSecretPassword!';
 
-test('Happy path: login válido redirige al área segura', async ({ page }) => {
-  await page.goto(URL_LOGIN);
+test.describe('Login', () => {
+  test('Happy path: login válido redirige al área segura', async ({ page }) => {
+    const login = new LoginPage(page);
 
-  await page.getByLabel(/username/i).fill(USER_VALIDO);
-  await page.getByLabel(/password/i).fill(PASS_VALIDA);
-  await page.getByRole('button', { name: /login/i }).click();
+    await login.goto();
+    await login.login(USER_VALIDO, PASS_VALIDA);
+    await login.expectLoggedIn();
+  });
 
-  await expect(page).toHaveURL(/\/secure/);
-  await expect(page.locator('#flash')).toContainText(/you logged into a secure area!/i);
-});
+  test('Happy path: login válido y logout correcto', async ({ page }) => {
+    const login = new LoginPage(page);
 
-test('Happy path: login válido y logout correcto', async ({ page }) => {
-  await page.goto(URL_LOGIN);
+    await login.goto();
+    await login.login(USER_VALIDO, PASS_VALIDA);
+    await login.expectLoggedIn();
+    await login.logout();
+    await login.expectLoggedOut();
+  });
 
-  await page.getByLabel(/username/i).fill(USER_VALIDO);
-  await page.getByLabel(/password/i).fill(PASS_VALIDA);
-  await page.getByRole('button', { name: /login/i }).click();
-  await expect(page).toHaveURL(/\/secure/);
+  test('Unhappy path: credenciales inválidas muestran mensaje de error', async ({ page }) => {
+    const login = new LoginPage(page);
 
-  // Logout
-  await page.getByRole('link', { name: /logout/i }).click();
+    await login.goto();
+    await login.login('usuario_invalido', 'password_invalida');
+    await login.expectUsernameInvalidError();
+  });
 
-  await expect(page).toHaveURL(URL_LOGIN);
-  await expect(page.locator('#flash')).toContainText(/you logged out of the secure area!/i);
-});
+  test('Unhappy path: no introducir password muestra error', async ({ page }) => {
+    const login = new LoginPage(page);
 
-test('Unhappy path: credenciales inválidas muestran mensaje de error', async ({ page }) => {
-  await page.goto(URL_LOGIN);
-
-  await page.getByLabel(/username/i).fill('usuario_invalido');
-  await page.getByLabel(/password/i).fill('password_invalida');
-  await page.getByRole('button', { name: /login/i }).click();
-
-  await expect(page).toHaveURL(URL_LOGIN);
-  await expect(page.locator('#flash')).toContainText(/your username is invalid!/i);
-});
-
-test('Unhappy path: no introducir password muestra error', async ({ page }) => {
-  await page.goto(URL_LOGIN);
-
-  await page.getByLabel(/username/i).fill(USER_VALIDO);
-  await page.getByLabel(/password/i).fill(''); // sin contraseña
-  await page.getByRole('button', { name: /login/i }).click();
-
-  await expect(page).toHaveURL(URL_LOGIN);
-  await expect(page.locator('#flash')).toContainText(/your password is invalid!/i);
+    await login.goto();
+    await login.login(USER_VALIDO, '');
+    await login.expectPasswordInvalidError();
+  });
 });
