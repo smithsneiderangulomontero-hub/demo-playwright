@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { LoginPage } from "../pages/LoginPage";
+import { usuarios } from "../data/users";
 
 /**
  * Prueba de login con credenciales inválidas.
@@ -10,18 +11,11 @@ test("muestra mensaje de error al ingresar credenciales inválidas", async ({
   page,
 }) => {
   const loginPage = new LoginPage(page);
-  const credencialesInvalidas = {
-    usuario: "usuario_invalido",
-    password: "password_invalido",
-  };
 
   await loginPage.goto();
   await expect(loginPage.heading).toBeVisible();
 
-  await loginPage.login(
-    credencialesInvalidas.usuario,
-    credencialesInvalidas.password,
-  );
+  await loginPage.login(usuarios.invalido.username, usuarios.invalido.password);
 
   await loginPage.expectErrorMessage(/your username is invalid!/i);
   await expect(page).toHaveURL(/.*login/);
